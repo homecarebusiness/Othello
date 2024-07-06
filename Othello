@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>よっしー＠訪問介護開業サポートが作ったオセロゲーム</title>
+    <style>
+        body {
+            font-family: 'Hiragino Sans', 'Meiryo', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(to bottom, #87CEEB, #E0F6FF);
+            background-attachment: fixed;
+        }
+        .container {
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        #welcome-text {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        #game-board {
+            display: inline-grid;
+            grid-template-columns: repeat(8, 50px);
+            grid-gap: 2px;
+            background-color: #008000;
+            padding: 10px;
+            border-radius: 5px;
+            position: relative;
+        }
+        .cell {
+            width: 50px;
+            height: 50px;
+            background-color: #008000;
+            border: 1px solid #006400;
+            cursor: pointer;
+        }
+        .disc {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin: 5px;
+        }
+        .black { background-color: black; }
+        .white { background-color: white; }
+        #difficulty {
+            margin: 10px 0;
+        }
+        #home-care-info {
+            margin-top: 20px;
+            max-width: 600px;
+            text-align: left;
+        }
+        #pass-display {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            font-weight: bold;
+            color: red;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 10px 20px;
+            border-radius: 10px;
+            display: none;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>よっしー＠訪問介護開業サポートが作ったオセロゲーム</h1>
+        <div id="welcome-text">
+            私のオセロゲームをプレイしていただき、ありがとうございます！<br>
+            5種類のコンピューターと思う存分お楽しみください♪
+        </div>
+        <div id="game-board">
+            <div id="pass-display">パス</div>
+        </div>
+        <div id="difficulty">
+            <label for="difficulty-select">難易度：</label>
+            <select id="difficulty-select">
+                <option value="0">とても簡単</option>
+                <option value="1">簡単</option>
+                <option value="2" selected>普通</option>
+                <option value="3">難しい</option>
+                <option value="4">とても難しい</option>
+            </select>
+        </div>
+        <button id="new-game">新しいゲーム</button>
+        <div id="status"></div>
+        <div id="home-care-info">
+            <p>訪問介護事業の開業をお考えの皆様へ。</p>
+            <p>介護保険法と障がい福祉総合支援法に基づき、安心と信頼のサービスを提供します。</p>
+            <p>開業手続きから運営サポートまで、専門家がしっかりサポート。</p>
+            <p>地域社会に貢献しながら、自立した経営を目指しませんか？</p>
+            <p>今すぐお問い合わせください。</p>
+        </div>
+    </div>
+    <script>
+        const board = document.getElementById('game-board');
+        const difficultySelect = document.getElementById('difficulty-select');
+        const newGameButton = document.getElementById('new-game');
+        const statusDisplay = document.getElementById('status');
+        const passDisplay = document.getElementById('pass-display');
+        let gameState = [];
+        let currentPlayer = 'black';
+
+        function initializeBoard() {
+            gameState = Array(8).fill().map(() => Array(8).fill(null));
+            gameState[3][3] = gameState[4][4] = 'white';
+            gameState[3][4] = gameState[4][3] = 'black';
+            currentPlayer = 'black';
+            renderBoard();
+            updateStatus();
+        }
+
+        function renderBoard() {
+            board.innerHTML = '<div id="pass-display">パス</div>';
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.row = i;
+                    cell.dataset.col = j;
+                    if (gameState[i][j]) {
+                        const disc = document.createElement('div');
+                        disc.className = `disc ${gameState[i][j]}`;
+                        cell.appendChild(disc);
+                    }
+                    cell.addEventListener('click', () => makeMove(i, j));
+                    board.appendChild(cell);
+                }
+            }
+        }
+
+        function makeMove(row, col) {
+            if (!isValidMove(row, col, currentPlayer)) return;
+
+            flipDiscs(row, col, currentPlayer);
+            gameState[row][col] = currentPlayer;
+            currentPlayer = currentPlayer === 'black' ? 'white' : 'black';
+            renderBoard();
+            updateStatus();
+
+            if (currentPlayer === 'white') {
+                setTimeout(makeComputerMove, 500);
+            } else if (!hasValidMoves('black')) {
+                showPass();
+                currentPlayer = 'white';
+                updateStatus();
+                setTimeout(makeComputerMove, 1500);
+            }
+        }
+
+        function updateStatus() {
+            const blackCount = countDiscs('black');
+            const whiteCount = countDiscs('white');
+            let statusText = `黒: ${blackCount} 白: ${whiteCount}`;
+
+            if (!hasValidMoves('black') && !hasValidMoves('white')) {
+                if (blackCount > whiteCount) {
+                    statusText += ' - 黒の勝利！';
+                } else if (whiteCount > blackCount) {
+                    statusText += ' - 白の勝利！';
+                } else {
+                    statusText += ' - 引き分け！';
+                }
+            } else {
+                statusText += ` - ${currentPlayer === 'black' ? '黒' : '白'}の番です`;
+            }
+
+            statusDisplay.textContent = statusText;
+        }
+
+        function showPass() {
+            passDisplay.style.display = 'block';
+            setTimeout(() => {
+                passDisplay.style.display = 'none';
+            }, 1000);
+        }
+
+        function hasValidMoves(player) {
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    if (isValidMove(i, j, player)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        function isValidMove(row, col, player) {
+            if (gameState[row][col]) return false;
+            const directions = [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]];
+            for (const [dx, dy] of directions) {
+                if (wouldFlip(row, col, dx, dy, player)) return true;
+            }
+            return false;
+        }
+
+        function wouldFlip(row, col, dx, dy, player) {
+            let x = row + dx;
+            let y = col + dy;
+            if (x < 0 || x >= 8 || y < 0 || y >= 8 || gameState[x][y] === player) return false;
+            if (gameState[x][y] === null) return false;
+            while (true) {
+                x += dx;
+                y += dy;
+                if (x < 0 || x >= 8 || y < 0 || y >= 8) return false;
+                if (gameState[x][y] === null) return false;
+                if (gameState[x][y] === player) return true;
+            }
+        }
+
+        function flipDiscs(row, col, player) {
+            const directions = [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]];
+            for (const [dx, dy] of directions) {
+                if (wouldFlip(row, col, dx, dy, player)) {
+                    let x = row + dx;
+                    let y = col + dy;
+                    while (gameState[x][y] !== player) {
+                        gameState[x][y] = player;
+                        x += dx;
+                        y += dy;
+                    }
+                }
+            }
+        }
+
+        function makeComputerMove() {
+            if (!hasValidMoves('white')) {
+                showPass();
+                currentPlayer = 'black';
+                updateStatus();
+                return;
+            }
+
+            const difficulty = parseInt(difficultySelect.value);
+            let bestMove = null;
+            let bestScore = -Infinity;
+
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    if (isValidMove(i, j, 'white')) {
+                        const score = evaluateMove(i, j, difficulty);
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestMove = [i, j];
+                        }
+                    }
+                }
+            }
+
+            if (bestMove) {
+                setTimeout(() => makeMove(bestMove[0], bestMove[1]), 500);
+            } else {
+                currentPlayer = 'black';
+                updateStatus();
+            }
+        }
+
+        function evaluateMove(row, col, difficulty) {
+            const corners = [[0, 0], [0, 7], [7, 0], [7, 7]];
+            const edges = [[0, 1], [0, 6], [1, 0], [1, 7], [6, 0], [6, 7], [7, 1], [7, 6]];
+
+            let score = 0;
+            if (corners.some(([r, c]) => r === row && c === col)) {
+                score += 100;
+            } else if (edges.some(([r, c]) => r === row && c === col)) {
+                score += 20;
+            }
+
+            const tempState = gameState.map(row => [...row]);
+            flipDiscs(row, col, 'white');
+            gameState[row][col] = 'white';
+
+            const flippedDiscs = countDiscs('white') - countDiscs('black');
+            score += flippedDiscs * 2;
+
+            if (difficulty > 1) {
+                const opponentMoves = getValidMoves('black');
+                score -= opponentMoves.length;
+
+                if (difficulty > 2) {
+                    const mobility = getValidMoves('white').length - opponentMoves.length;
+                    score += mobility * 5;
+
+                    if (difficulty > 3) {
+                        score += evaluateStability(row, col) * 10;
+                    }
+                }
+            }
+
+            gameState = tempState;
+            return score;
+        }
+
+        function countDiscs(player) {
+            return gameState.flat().filter(cell => cell === player).length;
+        }
+
+        function getValidMoves(player) {
+            const moves = [];
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    if (isValidMove(i, j, player)) {
+                        moves.push([i, j]);
+                    }
+                }
+            }
+            return moves;
+        }
+
+        function evaluateStability(row, col) {
+            const directions = [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]];
+            let stability = 0;
+
+            for (const [dx, dy] of directions) {
+                let x = row + dx;
+                let y = col + dy;
+                let line = 0;
+                while (x >= 0 && x < 8 && y >= 0 && y < 8 && gameState[x][y] === 'white') {
+                    line++;
+                    x += dx;
+                    y += dy;
+                }
+                stability += line;
+            }
+
+            return stability;
+        }
+
+        newGameButton.addEventListener('click', initializeBoard);
+        initializeBoard();
+    </script>
+</body>
+</html>
